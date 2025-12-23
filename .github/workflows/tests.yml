@@ -50,7 +50,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.node-version }}-${{ matrix.browser }}
           path: test-results/
@@ -58,7 +58,7 @@ jobs:
 
       - name: Upload playwright report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: playwright-report-${{ matrix.node-version }}-${{ matrix.browser }}
           path: playwright-report/
