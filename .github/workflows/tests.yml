@@ -1,0 +1,90 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run tests daily at 2:00 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18.x, 20.x]
+        browser: [chromium, firefox, webkit]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          BASE_URL=${{ secrets.BASE_URL || 'https://example-ecommerce.com' }}
+          TEST_USERNAME=${{ secrets.TEST_USERNAME || 'test@example.com' }}
+          TEST_PASSWORD=${{ secrets.TEST_PASSWORD || 'TestPassword123!' }}
+          HEADLESS=true
+          EOF
+
+      - name: Run tests - ${{ matrix.browser }}
+        run: npm run test -- --project=${{ matrix.browser }}
+        env:
+          CI: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.node-version }}-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 30
+
+      - name: Upload playwright report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: playwright-report-${{ matrix.node-version }}-${{ matrix.browser }}
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Comment test results on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const results = fs.existsSync('test-results/results.json') 
+              ? JSON.parse(fs.readFileSync('test-results/results.json', 'utf8'))
+              : { stats: { expected: 0, unexpected: 0, flaky: 0, skipped: 0 } };
+            
+            const body = `
+            ## Test Results - ${{ matrix.node-version }} / ${{ matrix.browser }}
+            - Passed: ${results.stats.expected || 0}
+            - Failed: ${results.stats.unexpected || 0}
+            - Flaky: ${results.stats.flaky || 0}
+            - Skipped: ${results.stats.skipped || 0}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

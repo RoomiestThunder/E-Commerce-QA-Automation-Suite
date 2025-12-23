@@ -1,0 +1,109 @@
+version: '3.9'
+
+services:
+  # Main test execution service
+  automation-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: automation-tests
+    
+    # Environment variables
+    environment:
+      # Target application
+      BASE_URL: ${BASE_URL:-https://example.com}
+      TEST_USERNAME: ${TEST_USERNAME:-test@example.com}
+      TEST_PASSWORD: ${TEST_PASSWORD:-TestPassword123}
+      
+      # Playwright configuration
+      HEADLESS: ${HEADLESS:-true}
+      BROWSERS: ${BROWSERS:-chromium,firefox,webkit}
+      WORKERS: ${WORKERS:-4}
+      
+      # Logging
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DEBUG: ${DEBUG:-''}
+      
+      # Timeouts
+      TIMEOUT: ${TIMEOUT:-30000}
+      
+      # CI/CD
+      CI: 'true'
+    
+    # Volume mounts
+    volumes:
+      # Test results output
+      - ./test-results:/app/test-results
+      
+      # Playwright cache (for faster browser startup)
+      - playwright-cache:/root/.cache/ms-playwright
+      
+      # Optional: Source code for development
+      - .:/app:ro
+    
+    # Port configuration (not needed for headless tests)
+    # Exposed for debugging purposes if needed
+    ports:
+      - "9222:9222"  # Chrome DevTools Protocol (CDP)
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # Restart policy
+    restart: 'no'
+    
+    # Network
+    networks:
+      - test-network
+    
+    # Logging configuration
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '10m'
+        max-file: '3'
+    
+    # Health check
+    healthcheck:
+      test: ['CMD', 'npm', 'run', 'test:auth', '--grep', 'login']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Optional: Mock API service for testing
+  mock-api:
+    image: mockoon/mockoon:latest
+    container_name: mock-api
+    
+    ports:
+      - '3001:3000'
+    
+    volumes:
+      - ./mock-api/mockoon-data.json:/data.json:ro
+    
+    environment:
+      MOCKOON_DATA: /data.json
+    
+    networks:
+      - test-network
+    
+    restart: unless-stopped
+    
+    profiles:
+      - with-mock-api
+
+networks:
+  test-network:
+    driver: bridge
+
+volumes:
+  playwright-cache:
+    driver: local
