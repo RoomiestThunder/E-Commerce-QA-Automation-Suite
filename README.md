@@ -2,6 +2,16 @@
 
 Enterprise-grade end-to-end testing framework for e-commerce platforms built with Playwright and TypeScript.
 
+## ⚠️ Important Setup Note
+
+**This is a test automation framework template.** Before running tests, you need to:
+
+1. **Configure your target e-commerce website** in `.env` file
+2. **Update GitHub Secrets** with `BASE_URL`, `TEST_USERNAME`, and `TEST_PASSWORD`
+3. **Tests are set to manual trigger only** - uncomment workflow triggers in `.github/workflows/tests.yml` once your test environment is ready
+
+The default `example-ecommerce.com` is a placeholder and will cause tests to fail.
+
 ## Overview
 
 This project provides a comprehensive test automation solution for critical e-commerce user journeys. The framework implements the Page Object Model pattern with TypeScript for type safety, concurrent test execution, and integrated CI/CD pipelines.
